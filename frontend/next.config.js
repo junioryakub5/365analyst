@@ -8,6 +8,10 @@ const nextConfig = {
       },
     ],
   },
+  // Increase body size limit for file uploads proxied through Next.js
+  experimental: {
+    proxyTimeout: 60000,
+  },
   async rewrites() {
     return [
       // Secret path → serves admin page without changing URL to /admin
