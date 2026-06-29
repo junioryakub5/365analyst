@@ -68,14 +68,13 @@ function adminHeaders(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
-/** Upload a File directly to the backend (bypasses Vercel proxy which breaks multipart/form-data) */
+/** Upload a File via the Vercel proxy → VPS backend (server-to-server, avoids mixed-content blocks) */
 export async function adminUploadImage(token: string, file: File): Promise<string> {
-  // Use a dedicated direct upload URL if set (e.g. https://365analyst.com/api or http://72.60.23.133:8080/api)
-  // Fallback to the regular API_URL. This bypasses Vercel's rewrite proxy for binary uploads.
-  const uploadBase = process.env.NEXT_PUBLIC_UPLOAD_URL || API_URL;
   const formData = new FormData();
   formData.append("image", file);
-  const res = await axios.post<{ success: boolean; url: string }>(`${uploadBase}/upload`, formData, {
+  // Always go through /api/upload (Vercel rewrite proxies this to the VPS server-to-server).
+  // Do NOT call the VPS directly from the browser — HTTPS→HTTP causes a mixed-content block.
+  const res = await api.post<{ success: boolean; url: string }>("/upload", formData, {
     headers: {
       Authorization: `Bearer ${token}`,
       // Do NOT set Content-Type manually — axios auto-sets it with the multipart boundary
