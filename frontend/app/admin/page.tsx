@@ -343,6 +343,7 @@ function OverviewSection({ token }: { token: string }) {
   const [stats, setStats] = useState<{
     totalSlips: number; activeSlips: number; completedSlips: number;
     totalRevenue: number; totalSales: number; recentActivity: RecentActivity[];
+    ghanaRevenue: number; nigeriaRevenue: number; ghanaSales: number; nigeriaSales: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -414,7 +415,7 @@ function OverviewSection({ token }: { token: string }) {
         ))}
       </div>
 
-      {/* Revenue + Slip overview row */}
+      {/* Revenue breakdown row: Ghana + Nigeria */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Ghana Payments */}
         <div style={{ background: "rgba(17,17,23,0.8)", border: "1px solid rgba(22,163,74,0.12)", borderRadius: "16px", padding: "1.25rem", backdropFilter: "blur(10px)" }}>
@@ -423,38 +424,38 @@ function OverviewSection({ token }: { token: string }) {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Globe2 size={16} style={{ color: "#10b981" }} />
               </div>
-              <h3 style={{ color: "#f4f4f5", fontWeight: 700, fontSize: "0.9rem", fontFamily: "'Sora',sans-serif" }}>Ghana Payments</h3>
+              <h3 style={{ color: "#f4f4f5", fontWeight: 700, fontSize: "0.9rem", fontFamily: "'Sora',sans-serif" }}>🇬🇭 Ghana (Paystack)</h3>
             </div>
           </div>
           <div className="flex justify-between text-sm mb-3">
             <span style={{ color: "#52525b" }}>Revenue</span>
-            <span style={{ fontWeight: 800, color: "#10b981", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>GHS {stats.totalRevenue.toFixed(2)}</span>
+            <span style={{ fontWeight: 800, color: "#10b981", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>GHS {(stats.ghanaRevenue ?? stats.totalRevenue).toFixed(2)}</span>
           </div>
           <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", marginBottom: "0.75rem" }} />
           <div className="flex justify-between text-sm">
             <span style={{ color: "#52525b" }}>Sales</span>
-            <span style={{ fontWeight: 700, color: "#f4f4f5" }}>{stats.totalSales}</span>
+            <span style={{ fontWeight: 700, color: "#f4f4f5" }}>{stats.ghanaSales ?? stats.totalSales}</span>
           </div>
         </div>
 
-        {/* Slip Overview */}
-        <div style={{ background: "rgba(17,17,23,0.8)", border: "1px solid rgba(22,163,74,0.12)", borderRadius: "16px", padding: "1.25rem", backdropFilter: "blur(10px)" }}>
+        {/* Nigeria Payments */}
+        <div style={{ background: "rgba(17,17,23,0.8)", border: "1px solid rgba(16,185,129,0.12)", borderRadius: "16px", padding: "1.25rem", backdropFilter: "blur(10px)" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <BarChart2 size={16} style={{ color: "#16a34a" }} />
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Globe2 size={16} style={{ color: "#34d399" }} />
               </div>
-              <h3 style={{ color: "#f4f4f5", fontWeight: 700, fontSize: "0.9rem", fontFamily: "'Sora',sans-serif" }}>Slip Overview</h3>
+              <h3 style={{ color: "#f4f4f5", fontWeight: 700, fontSize: "0.9rem", fontFamily: "'Sora',sans-serif" }}>🇳🇬 Nigeria (Flutterwave)</h3>
             </div>
           </div>
           <div className="flex justify-between text-sm mb-3">
-            <span style={{ color: "#52525b" }}>Active</span>
-            <span style={{ fontWeight: 800, color: "#16a34a", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>{stats.activeSlips}</span>
+            <span style={{ color: "#52525b" }}>Revenue</span>
+            <span style={{ fontWeight: 800, color: "#34d399", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>NGN {(stats.nigeriaRevenue ?? 0).toLocaleString()}</span>
           </div>
           <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", marginBottom: "0.75rem" }} />
           <div className="flex justify-between text-sm">
-            <span style={{ color: "#52525b" }}>Completed</span>
-            <span style={{ fontWeight: 700, color: "#f4f4f5" }}>{stats.completedSlips}</span>
+            <span style={{ color: "#52525b" }}>Sales</span>
+            <span style={{ fontWeight: 700, color: "#f4f4f5" }}>{stats.nigeriaSales ?? 0}</span>
           </div>
         </div>
       </div>
