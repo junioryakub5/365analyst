@@ -64,7 +64,12 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use('/api/', generalLimiter);
+// Apply general limiter only to public routes — admin routes are protected by
+// token auth already, so rate-limiting them causes lockouts on normal dashboard use.
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/admin') || req.path.startsWith('/upload')) return next();
+  return generalLimiter(req, res, next);
+});
 
 // Body parsing — IMPORTANT: raw body needed for webhook HMAC verification
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));

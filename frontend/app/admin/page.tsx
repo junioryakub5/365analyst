@@ -358,9 +358,17 @@ function OverviewSection({ token }: { token: string }) {
     totalWins?: number; totalLosses?: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsError, setStatsError] = useState("");
 
   useEffect(() => {
-    adminGetStats(token).then(setStats).catch(console.error).finally(() => setLoading(false));
+    adminGetStats(token)
+      .then(setStats)
+      .catch((err: unknown) => {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 429) setStatsError("Rate limited — wait a minute and refresh.");
+        else setStatsError("Failed to load stats.");
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
   if (loading) return (
@@ -370,7 +378,7 @@ function OverviewSection({ token }: { token: string }) {
   );
   if (!stats) return (
     <div className="text-center py-24" style={{ color: "#a1a1aa" }}>
-      Failed to load stats.
+      {statsError || "Failed to load stats."}
     </div>
   );
 
@@ -1270,7 +1278,11 @@ function ManageSlipsSection({ token }: { token: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try { setSlips(await adminGetPredictions(token)); }
-    catch { showToast("err", "Failed to load slips."); }
+    catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 429) showToast("err", "Rate limited — wait a minute and try again.");
+      else showToast("err", "Failed to load slips.");
+    }
     finally { setLoading(false); }
   }, [token]);
 
