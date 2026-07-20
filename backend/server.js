@@ -274,6 +274,12 @@ const db = {
     return { data:success.slice((page-1)*limit, page*limit), total:success.length };
   },
   async stats() {
+    // ── Time boundaries ──────────────────────────────────────────────────────
+    const now       = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+    const weekStart  = new Date(now); weekStart.setDate(now.getDate() - 6); weekStart.setHours(0,0,0,0);
+    const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+
     if (supabase) {
       const [
         { count:total },
@@ -282,38 +288,100 @@ const db = {
         { count:salesCount },
         { data:amountRows },
         { data:recentRows },
+        { data:winRows },
+        { data:lossRows },
       ] = await Promise.all([
         supabase.from('predictions').select('*',{count:'exact',head:true}),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','active'),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed'),
         supabase.from('payments').select('*',{count:'exact',head:true}).eq('status','success'),
-        // Fetch amount + currency + provider for revenue breakdown
-        supabase.from('payments').select('*').eq('status','success').limit(100000),
+        // Fetch amount + currency + provider + created_at for revenue breakdown
+        supabase.from('payments').select('amount,currency,provider,created_at').eq('status','success').limit(100000),
         supabase.from('payments').select('*').eq('status','success')
           .order('created_at',{ascending:false}).limit(20),
+        supabase.from('predictions').select('id',{count:'exact',head:true}).eq('status','completed').eq('result','win'),
+        supabase.from('predictions').select('id',{count:'exact',head:true}).eq('status','completed').eq('result','loss'),
       ]);
       const rows = amountRows || [];
-      const totalRevenue    = rows.reduce((s,r) => s + (r.amount||0), 0);
-      const ghanaRevenue    = rows.filter(r => (r.provider||'paystack')==='paystack').reduce((s,r) => s + (r.amount||0), 0);
-      const nigeriaRevenue  = rows.filter(r => r.provider==='flutterwave').reduce((s,r) => s + (r.amount||0), 0);
-      const ghanaSales      = rows.filter(r => (r.provider||'paystack')==='paystack').length;
-      const nigeriaSales    = rows.filter(r => r.provider==='flutterwave').length;
-      const recentPayments  = (recentRows||[]).map(toMoney);
-      return { total, active, completed, totalRevenue, salesCount, recentPayments, ghanaRevenue, nigeriaRevenue, ghanaSales, nigeriaSales };
+
+      // Helper: check if a row is within a date range
+      const inRange = (r, start) => new Date(r.created_at) >= start;
+
+      const totalRevenue         = rows.reduce((s,r) => s + (r.amount||0), 0);
+      const ghanaRevenue         = rows.filter(r => (r.provider||'paystack')==='paystack').reduce((s,r) => s + (r.amount||0), 0);
+      const nigeriaRevenue       = rows.filter(r => r.provider==='flutterwave').reduce((s,r) => s + (r.amount||0), 0);
+      const ghanaSales           = rows.filter(r => (r.provider||'paystack')==='paystack').length;
+      const nigeriaSales         = rows.filter(r => r.provider==='flutterwave').length;
+
+      // Today
+      const todayRows            = rows.filter(r => inRange(r, todayStart));
+      const todayRevenue         = todayRows.reduce((s,r) => s + (r.amount||0), 0);
+      const todayGhanaRevenue    = todayRows.filter(r => (r.provider||'paystack')==='paystack').reduce((s,r) => s + (r.amount||0), 0);
+      const todayNigeriaRevenue  = todayRows.filter(r => r.provider==='flutterwave').reduce((s,r) => s + (r.amount||0), 0);
+      const todaySales           = todayRows.length;
+
+      // Week (last 7 days)
+      const weekRows             = rows.filter(r => inRange(r, weekStart));
+      const weekRevenue          = weekRows.reduce((s,r) => s + (r.amount||0), 0);
+      const weekSales            = weekRows.length;
+
+      // Month (current calendar month)
+      const monthRows            = rows.filter(r => inRange(r, monthStart));
+      const monthRevenue         = monthRows.reduce((s,r) => s + (r.amount||0), 0);
+      const monthSales           = monthRows.length;
+
+      const totalWins            = winRows?.length  || 0;
+      const totalLosses          = lossRows?.length || 0;
+      const recentPayments       = (recentRows||[]).map(toMoney);
+
+      return {
+        total, active, completed, totalRevenue, salesCount, recentPayments,
+        ghanaRevenue, nigeriaRevenue, ghanaSales, nigeriaSales,
+        todayRevenue, todayGhanaRevenue, todayNigeriaRevenue, todaySales,
+        weekRevenue, weekSales, monthRevenue, monthSales,
+        totalWins, totalLosses,
+      };
     }
+
+    // ── In-memory fallback ───────────────────────────────────────────────────
     const payments = memPayments.filter(p => p.status==='success');
-    const totalRevenue   = payments.reduce((s,p) => s+(p.amount||0), 0);
-    const ghanaRevenue   = payments.filter(p => (p.provider||'paystack')==='paystack').reduce((s,p) => s+(p.amount||0), 0);
-    const nigeriaRevenue = payments.filter(p => p.provider==='flutterwave').reduce((s,p) => s+(p.amount||0), 0);
-    const ghanaSales     = payments.filter(p => (p.provider||'paystack')==='paystack').length;
-    const nigeriaSales   = payments.filter(p => p.provider==='flutterwave').length;
+
+    const inRange = (p, start) => new Date(p.createdAt) >= start;
+
+    const totalRevenue         = payments.reduce((s,p) => s+(p.amount||0), 0);
+    const ghanaRevenue         = payments.filter(p => (p.provider||'paystack')==='paystack').reduce((s,p) => s+(p.amount||0), 0);
+    const nigeriaRevenue       = payments.filter(p => p.provider==='flutterwave').reduce((s,p) => s+(p.amount||0), 0);
+    const ghanaSales           = payments.filter(p => (p.provider||'paystack')==='paystack').length;
+    const nigeriaSales         = payments.filter(p => p.provider==='flutterwave').length;
+
+    const todayPayments        = payments.filter(p => inRange(p, todayStart));
+    const todayRevenue         = todayPayments.reduce((s,p) => s+(p.amount||0), 0);
+    const todayGhanaRevenue    = todayPayments.filter(p => (p.provider||'paystack')==='paystack').reduce((s,p) => s+(p.amount||0), 0);
+    const todayNigeriaRevenue  = todayPayments.filter(p => p.provider==='flutterwave').reduce((s,p) => s+(p.amount||0), 0);
+    const todaySales           = todayPayments.length;
+
+    const weekPayments         = payments.filter(p => inRange(p, weekStart));
+    const weekRevenue          = weekPayments.reduce((s,p) => s+(p.amount||0), 0);
+    const weekSales            = weekPayments.length;
+
+    const monthPayments        = payments.filter(p => inRange(p, monthStart));
+    const monthRevenue         = monthPayments.reduce((s,p) => s+(p.amount||0), 0);
+    const monthSales           = monthPayments.length;
+
+    const completedPreds       = memPredictions.filter(p => p.status==='completed');
+    const totalWins            = completedPreds.filter(p => p.result==='win').length;
+    const totalLosses          = completedPreds.filter(p => p.result==='loss').length;
+
     const recentPayments = [...payments].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt)).slice(0,20);
     return {
       total:memPredictions.length,
       active:memPredictions.filter(p=>p.status==='active').length,
-      completed:memPredictions.filter(p=>p.status==='completed').length,
+      completed:completedPreds.length,
       totalRevenue, salesCount: payments.length,
       recentPayments, ghanaRevenue, nigeriaRevenue, ghanaSales, nigeriaSales,
+      todayRevenue, todayGhanaRevenue, todayNigeriaRevenue, todaySales,
+      weekRevenue, weekSales, monthRevenue, monthSales,
+      totalWins, totalLosses,
     };
   },
 };
@@ -775,6 +843,18 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
       nigeriaRevenue:  s.nigeriaRevenue,
       ghanaSales:      s.ghanaSales,
       nigeriaSales:    s.nigeriaSales,
+      // ── Time-based revenue ──────────────────────────────────────────────────
+      todayRevenue:         s.todayRevenue,
+      todayGhanaRevenue:    s.todayGhanaRevenue,
+      todayNigeriaRevenue:  s.todayNigeriaRevenue,
+      todaySales:           s.todaySales,
+      weekRevenue:          s.weekRevenue,
+      weekSales:            s.weekSales,
+      monthRevenue:         s.monthRevenue,
+      monthSales:           s.monthSales,
+      // ── Win / Loss record ───────────────────────────────────────────────────
+      totalWins:       s.totalWins,
+      totalLosses:     s.totalLosses,
       recentActivity:  s.recentPayments.map(p => ({
         _id:p._id, email:p.email, predictionTitle:p.predictionTitle||'—',
         amount:p.amount, currency:p.currency||'GHS', status:p.status,

@@ -49,6 +49,7 @@ export interface RecentActivity {
   currency: string;
   predictionTitle: string;
   createdAt: string;
+  provider?: string;
 }
 
 export interface PaymentRecord {
