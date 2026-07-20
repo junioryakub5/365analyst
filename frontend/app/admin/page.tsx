@@ -344,9 +344,9 @@ function OverviewSection({ token }: { token: string }) {
     totalSlips: number; activeSlips: number; completedSlips: number;
     totalRevenue: number; totalSales: number; recentActivity: RecentActivity[];
     ghanaRevenue: number; nigeriaRevenue: number; ghanaSales: number; nigeriaSales: number;
-    todayRevenue: number; todayGhanaRevenue: number; todayNigeriaRevenue: number; todaySales: number;
-    weekRevenue: number; weekSales: number; monthRevenue: number; monthSales: number;
-    totalWins: number; totalLosses: number;
+    todayRevenue?: number; todayGhanaRevenue?: number; todayNigeriaRevenue?: number; todaySales?: number;
+    weekRevenue?: number; weekSales?: number; monthRevenue?: number; monthSales?: number;
+    totalWins?: number; totalLosses?: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -365,8 +365,19 @@ function OverviewSection({ token }: { token: string }) {
     </div>
   );
 
-  const winTotal = stats.totalWins + stats.totalLosses;
-  const winPct = winTotal > 0 ? Math.round((stats.totalWins / winTotal) * 100) : 0;
+  const totalWins  = stats.totalWins  ?? 0;
+  const totalLosses = stats.totalLosses ?? 0;
+  const winTotal = totalWins + totalLosses;
+  const winPct = winTotal > 0 ? Math.round((totalWins / winTotal) * 100) : 0;
+
+  const todayRevenue        = stats.todayRevenue        ?? 0;
+  const todayGhanaRevenue   = stats.todayGhanaRevenue   ?? 0;
+  const todayNigeriaRevenue = stats.todayNigeriaRevenue ?? 0;
+  const todaySales          = stats.todaySales          ?? 0;
+  const weekRevenue         = stats.weekRevenue         ?? 0;
+  const weekSales           = stats.weekSales           ?? 0;
+  const monthRevenue        = stats.monthRevenue        ?? 0;
+  const monthSales          = stats.monthSales          ?? 0;
 
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
@@ -410,20 +421,20 @@ function OverviewSection({ token }: { token: string }) {
               </div>
             </div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: "2rem", color: "#34d399", lineHeight: 1, marginBottom: 6 }}>
-              GHS {stats.todayRevenue.toFixed(2)}
+              GHS {todayRevenue.toFixed(2)}
             </div>
             <p style={{ fontSize: "0.72rem", color: "#52525b", marginBottom: 14 }}>
-              {stats.todaySales} sale{stats.todaySales !== 1 ? "s" : ""} today
+              {todaySales} sale{todaySales !== 1 ? "s" : ""} today
             </p>
             {/* Sub-breakdown */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span style={{ fontSize: "0.7rem", color: "#71717a" }}>🇬🇭 Ghana (Paystack)</span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#10b981" }}>GHS {stats.todayGhanaRevenue.toFixed(2)}</span>
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#10b981" }}>GHS {todayGhanaRevenue.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span style={{ fontSize: "0.7rem", color: "#71717a" }}>🇳🇬 Nigeria (Flutterwave)</span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#34d399" }}>NGN {stats.todayNigeriaRevenue.toLocaleString()}</span>
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#34d399" }}>NGN {todayNigeriaRevenue.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -449,19 +460,19 @@ function OverviewSection({ token }: { token: string }) {
             <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(129,140,248,0.8)" }}>This Week</p>
           </div>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.7rem", color: "#818cf8", lineHeight: 1, marginBottom: 6 }}>
-            GHS {stats.weekRevenue.toFixed(2)}
+            GHS {weekRevenue.toFixed(2)}
           </div>
-          <p style={{ fontSize: "0.72rem", color: "#52525b" }}>{stats.weekSales} sales · last 7 days</p>
+          <p style={{ fontSize: "0.72rem", color: "#52525b" }}>{weekSales} sales · last 7 days</p>
           <div style={{ marginTop: 16, height: 3, borderRadius: 4, background: "rgba(99,102,241,0.12)" }}>
             <div style={{
               height: "100%", borderRadius: 4,
               background: "linear-gradient(90deg, #818cf8, #6366f1)",
-              width: stats.totalRevenue > 0 ? `${Math.min(100, (stats.weekRevenue / stats.totalRevenue) * 100)}%` : "0%",
+              width: stats.totalRevenue > 0 ? `${Math.min(100, (weekRevenue / stats.totalRevenue) * 100)}%` : "0%",
               transition: "width 0.6s ease",
             }} />
           </div>
           <p style={{ fontSize: "0.65rem", color: "#52525b", marginTop: 4 }}>
-            {stats.totalRevenue > 0 ? Math.round((stats.weekRevenue / stats.totalRevenue) * 100) : 0}% of all-time
+            {stats.totalRevenue > 0 ? Math.round((weekRevenue / stats.totalRevenue) * 100) : 0}% of all-time
           </p>
         </div>
 
@@ -485,19 +496,19 @@ function OverviewSection({ token }: { token: string }) {
             <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(245,158,11,0.8)" }}>This Month</p>
           </div>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.7rem", color: "#f59e0b", lineHeight: 1, marginBottom: 6 }}>
-            GHS {stats.monthRevenue.toFixed(2)}
+            GHS {monthRevenue.toFixed(2)}
           </div>
-          <p style={{ fontSize: "0.72rem", color: "#52525b" }}>{stats.monthSales} sales · current month</p>
+          <p style={{ fontSize: "0.72rem", color: "#52525b" }}>{monthSales} sales · current month</p>
           <div style={{ marginTop: 16, height: 3, borderRadius: 4, background: "rgba(245,158,11,0.1)" }}>
             <div style={{
               height: "100%", borderRadius: 4,
               background: "linear-gradient(90deg, #f59e0b, #d97706)",
-              width: stats.totalRevenue > 0 ? `${Math.min(100, (stats.monthRevenue / stats.totalRevenue) * 100)}%` : "0%",
+              width: stats.totalRevenue > 0 ? `${Math.min(100, (monthRevenue / stats.totalRevenue) * 100)}%` : "0%",
               transition: "width 0.6s ease",
             }} />
           </div>
           <p style={{ fontSize: "0.65rem", color: "#52525b", marginTop: 4 }}>
-            {stats.totalRevenue > 0 ? Math.round((stats.monthRevenue / stats.totalRevenue) * 100) : 0}% of all-time
+            {stats.totalRevenue > 0 ? Math.round((monthRevenue / stats.totalRevenue) * 100) : 0}% of all-time
           </p>
         </div>
       </div>
@@ -522,7 +533,7 @@ function OverviewSection({ token }: { token: string }) {
           {
             label: "Win Rate",
             value: `${winPct}%`,
-            sub: `${stats.totalWins}W · ${stats.totalLosses}L · ${winTotal} total`,
+            sub: `${totalWins}W · ${totalLosses}L · ${winTotal} total`,
             color: winPct >= 50 ? "#10b981" : "#ef4444",
             bg: winPct >= 50 ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.06)",
             border: winPct >= 50 ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.18)",
@@ -591,7 +602,7 @@ function OverviewSection({ token }: { token: string }) {
           </div>
           <div className="flex justify-between">
             <div className="text-center">
-              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.4rem", color: "#10b981" }}>{stats.totalWins}</div>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.4rem", color: "#10b981" }}>{totalWins}</div>
               <div style={{ fontSize: "0.62rem", color: "#52525b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>Wins</div>
             </div>
             <div className="text-center">
@@ -599,7 +610,7 @@ function OverviewSection({ token }: { token: string }) {
               <div style={{ fontSize: "0.62rem", color: "#52525b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>Rate</div>
             </div>
             <div className="text-center">
-              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.4rem", color: "#ef4444" }}>{stats.totalLosses}</div>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.4rem", color: "#ef4444" }}>{totalLosses}</div>
               <div style={{ fontSize: "0.62rem", color: "#52525b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>Losses</div>
             </div>
           </div>
@@ -616,12 +627,12 @@ function OverviewSection({ token }: { token: string }) {
           <div className="space-y-2">
             <div className="flex justify-between items-baseline">
               <span style={{ fontSize: "0.68rem", color: "#52525b" }}>All-time</span>
-              <span style={{ fontWeight: 800, color: "#10b981", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>GHS {stats.ghanaRevenue.toFixed(2)}</span>
+              <span style={{ fontWeight: 800, color: "#10b981", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>GHS {(stats.ghanaRevenue ?? 0).toFixed(2)}</span>
             </div>
             <div style={{ height: "1px", background: "rgba(255,255,255,0.05)" }} />
             <div className="flex justify-between items-baseline">
               <span style={{ fontSize: "0.68rem", color: "#52525b" }}>Today</span>
-              <span style={{ fontWeight: 700, color: "#34d399", fontSize: "0.9rem" }}>GHS {stats.todayGhanaRevenue.toFixed(2)}</span>
+              <span style={{ fontWeight: 700, color: "#34d399", fontSize: "0.9rem" }}>GHS {todayGhanaRevenue.toFixed(2)}</span>
             </div>
             <div style={{ height: "1px", background: "rgba(255,255,255,0.05)" }} />
             <div className="flex justify-between text-sm">
@@ -642,12 +653,12 @@ function OverviewSection({ token }: { token: string }) {
           <div className="space-y-2">
             <div className="flex justify-between items-baseline">
               <span style={{ fontSize: "0.68rem", color: "#52525b" }}>All-time</span>
-              <span style={{ fontWeight: 800, color: "#34d399", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>NGN {stats.nigeriaRevenue.toLocaleString()}</span>
+              <span style={{ fontWeight: 800, color: "#34d399", fontFamily: "'Sora',sans-serif", fontSize: "1rem" }}>NGN {(stats.nigeriaRevenue ?? 0).toLocaleString()}</span>
             </div>
             <div style={{ height: "1px", background: "rgba(255,255,255,0.05)" }} />
             <div className="flex justify-between items-baseline">
               <span style={{ fontSize: "0.68rem", color: "#52525b" }}>Today</span>
-              <span style={{ fontWeight: 700, color: "#6ee7b7", fontSize: "0.9rem" }}>NGN {stats.todayNigeriaRevenue.toLocaleString()}</span>
+              <span style={{ fontWeight: 700, color: "#6ee7b7", fontSize: "0.9rem" }}>NGN {todayNigeriaRevenue.toLocaleString()}</span>
             </div>
             <div style={{ height: "1px", background: "rgba(255,255,255,0.05)" }} />
             <div className="flex justify-between text-sm">
