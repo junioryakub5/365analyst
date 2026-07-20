@@ -311,8 +311,8 @@ const db = {
         { count:salesCount },
         { data:amountRows },
         { data:recentRows },
-        { data:winRows },
-        { data:lossRows },
+        { count:winCount },
+        { count:lossCount },
       ] = await Promise.all([
         supabase.from('predictions').select('*',{count:'exact',head:true}),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','active'),
@@ -322,8 +322,8 @@ const db = {
         supabase.from('payments').select('amount,currency,provider,created_at').eq('status','success').limit(100000),
         supabase.from('payments').select('*').eq('status','success')
           .order('created_at',{ascending:false}).limit(20),
-        supabase.from('predictions').select('id',{count:'exact',head:true}).eq('status','completed').eq('result','win'),
-        supabase.from('predictions').select('id',{count:'exact',head:true}).eq('status','completed').eq('result','loss'),
+        supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed').eq('result','win'),
+        supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed').eq('result','loss'),
       ]);
       const rows = amountRows || [];
 
@@ -358,8 +358,8 @@ const db = {
       const monthRevenue         = monthRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS only
       const monthSales           = monthRows.length;
 
-      const totalWins            = winRows?.length  || 0;
-      const totalLosses          = lossRows?.length || 0;
+      const totalWins            = winCount  || 0;
+      const totalLosses          = lossCount || 0;
       const recentPayments       = (recentRows||[]).map(toMoney);
 
       return {
