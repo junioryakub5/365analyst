@@ -306,28 +306,33 @@ const db = {
 
       // Helper: check if a row is within a date range
       const inRange = (r, start) => new Date(r.created_at) >= start;
+      const isGhana = r => (r.provider||'paystack') === 'paystack';
+      const isNgn   = r => r.provider === 'flutterwave';
 
-      const totalRevenue         = rows.reduce((s,r) => s + (r.amount||0), 0);
-      const ghanaRevenue         = rows.filter(r => (r.provider||'paystack')==='paystack').reduce((s,r) => s + (r.amount||0), 0);
-      const nigeriaRevenue       = rows.filter(r => r.provider==='flutterwave').reduce((s,r) => s + (r.amount||0), 0);
-      const ghanaSales           = rows.filter(r => (r.provider||'paystack')==='paystack').length;
-      const nigeriaSales         = rows.filter(r => r.provider==='flutterwave').length;
+      const ghanaRows    = rows.filter(isGhana);
+      const nigeriaRows  = rows.filter(isNgn);
+
+      const totalRevenue         = ghanaRows.reduce((s,r) => s + (r.amount||0), 0);   // GHS only
+      const ghanaRevenue         = totalRevenue;
+      const nigeriaRevenue       = nigeriaRows.reduce((s,r) => s + (r.amount||0), 0); // NGN only
+      const ghanaSales           = ghanaRows.length;
+      const nigeriaSales         = nigeriaRows.length;
 
       // Today
       const todayRows            = rows.filter(r => inRange(r, todayStart));
-      const todayRevenue         = todayRows.reduce((s,r) => s + (r.amount||0), 0);
-      const todayGhanaRevenue    = todayRows.filter(r => (r.provider||'paystack')==='paystack').reduce((s,r) => s + (r.amount||0), 0);
-      const todayNigeriaRevenue  = todayRows.filter(r => r.provider==='flutterwave').reduce((s,r) => s + (r.amount||0), 0);
+      const todayGhanaRevenue    = todayRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS
+      const todayNigeriaRevenue  = todayRows.filter(isNgn).reduce((s,r)  => s + (r.amount||0), 0); // NGN
+      const todayRevenue         = todayGhanaRevenue; // GHS only
       const todaySales           = todayRows.length;
 
       // Week (last 7 days)
       const weekRows             = rows.filter(r => inRange(r, weekStart));
-      const weekRevenue          = weekRows.reduce((s,r) => s + (r.amount||0), 0);
+      const weekRevenue          = weekRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS only
       const weekSales            = weekRows.length;
 
       // Month (current calendar month)
       const monthRows            = rows.filter(r => inRange(r, monthStart));
-      const monthRevenue         = monthRows.reduce((s,r) => s + (r.amount||0), 0);
+      const monthRevenue         = monthRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS only
       const monthSales           = monthRows.length;
 
       const totalWins            = winRows?.length  || 0;
@@ -347,25 +352,30 @@ const db = {
     const payments = memPayments.filter(p => p.status==='success');
 
     const inRange = (p, start) => new Date(p.createdAt) >= start;
+    const isGhana = p => (p.provider||'paystack') === 'paystack';
+    const isNgn   = p => p.provider === 'flutterwave';
 
-    const totalRevenue         = payments.reduce((s,p) => s+(p.amount||0), 0);
-    const ghanaRevenue         = payments.filter(p => (p.provider||'paystack')==='paystack').reduce((s,p) => s+(p.amount||0), 0);
-    const nigeriaRevenue       = payments.filter(p => p.provider==='flutterwave').reduce((s,p) => s+(p.amount||0), 0);
-    const ghanaSales           = payments.filter(p => (p.provider||'paystack')==='paystack').length;
-    const nigeriaSales         = payments.filter(p => p.provider==='flutterwave').length;
+    const ghanaPayments    = payments.filter(isGhana);
+    const nigeriaPayments  = payments.filter(isNgn);
+
+    const totalRevenue         = ghanaPayments.reduce((s,p) => s+(p.amount||0), 0); // GHS only
+    const ghanaRevenue         = totalRevenue;
+    const nigeriaRevenue       = nigeriaPayments.reduce((s,p) => s+(p.amount||0), 0); // NGN only
+    const ghanaSales           = ghanaPayments.length;
+    const nigeriaSales         = nigeriaPayments.length;
 
     const todayPayments        = payments.filter(p => inRange(p, todayStart));
-    const todayRevenue         = todayPayments.reduce((s,p) => s+(p.amount||0), 0);
-    const todayGhanaRevenue    = todayPayments.filter(p => (p.provider||'paystack')==='paystack').reduce((s,p) => s+(p.amount||0), 0);
-    const todayNigeriaRevenue  = todayPayments.filter(p => p.provider==='flutterwave').reduce((s,p) => s+(p.amount||0), 0);
+    const todayGhanaRevenue    = todayPayments.filter(isGhana).reduce((s,p) => s+(p.amount||0), 0); // GHS
+    const todayNigeriaRevenue  = todayPayments.filter(isNgn).reduce((s,p)  => s+(p.amount||0), 0); // NGN
+    const todayRevenue         = todayGhanaRevenue; // GHS only
     const todaySales           = todayPayments.length;
 
     const weekPayments         = payments.filter(p => inRange(p, weekStart));
-    const weekRevenue          = weekPayments.reduce((s,p) => s+(p.amount||0), 0);
+    const weekRevenue          = weekPayments.filter(isGhana).reduce((s,p) => s+(p.amount||0), 0); // GHS only
     const weekSales            = weekPayments.length;
 
     const monthPayments        = payments.filter(p => inRange(p, monthStart));
-    const monthRevenue         = monthPayments.reduce((s,p) => s+(p.amount||0), 0);
+    const monthRevenue         = monthPayments.filter(isGhana).reduce((s,p) => s+(p.amount||0), 0); // GHS only
     const monthSales           = monthPayments.length;
 
     const completedPreds       = memPredictions.filter(p => p.status==='completed');
