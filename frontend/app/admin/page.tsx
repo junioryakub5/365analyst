@@ -122,8 +122,17 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
       await adminGetPredictions(token.trim());
       sessionStorage.setItem("bt_admin_token", token.trim());
       onLogin(token.trim());
-    } catch {
-      setError("Invalid admin token. Access denied.");
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 429) {
+        setError("Too many attempts. Please wait 15 minutes before trying again.");
+      } else if (status === 401 || status === 403) {
+        setError("Invalid admin token. Access denied.");
+      } else if (!status) {
+        setError("Network error — check your connection and try again.");
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally { setLoading(false); }
   };
 
