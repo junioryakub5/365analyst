@@ -1452,6 +1452,16 @@ function ManageSlipsSection({ token }: { token: string }) {
                       </span>
                       <StatusBadge status={slip.status} />
                       {slip.result && <StatusBadge status={slip.result} />}
+                      <span
+                        className="inline-flex items-center gap-1 font-bold text-xs px-2 py-0.5 rounded-full"
+                        style={{
+                          background: slip.purchaseCount ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.05)",
+                          color: slip.purchaseCount ? "#10b981" : "#52525b",
+                          border: slip.purchaseCount ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        {slip.purchaseCount ?? 0} sold
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
