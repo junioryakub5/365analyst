@@ -219,9 +219,32 @@ const db = {
     if (supabase) {
       const { data, error } = await supabase.from('predictions').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      return data.map(toP);
+      const predictions = data.map(toP);
+
+      // Attach purchaseCount: number of successful payments per prediction
+      try {
+        const { data: payCounts } = await supabase
+          .from('payments')
+          .select('prediction_id')
+          .eq('status', 'success')
+          .not('prediction_id', 'is', null);
+        if (payCounts) {
+          const countMap = {};
+          for (const row of payCounts) {
+            countMap[row.prediction_id] = (countMap[row.prediction_id] || 0) + 1;
+          }
+          for (const p of predictions) p.purchaseCount = countMap[p._id] || 0;
+        }
+      } catch { /* non-fatal — purchaseCount just stays undefined */ }
+
+      return predictions;
     }
-    return [...memPredictions].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
+    const predictions = [...memPredictions].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
+    // Attach purchaseCount from in-memory payments
+    for (const p of predictions) {
+      p.purchaseCount = memPayments.filter(pay => pay.predictionId === p._id && pay.status === 'success').length;
+    }
+    return predictions;
   },
   async findPayment(query) {
     if (supabase) {

@@ -20,7 +20,9 @@ export interface Prediction {
   result: "win" | "loss" | null;
   createdAt: string;
   updatedAt?: string;
+  purchaseCount?: number;           // number of successful purchases (admin view)
 }
+
 
 export interface Payment {
   reference: string;

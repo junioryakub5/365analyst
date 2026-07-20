@@ -1500,7 +1500,7 @@ function ManageSlipsSection({ token }: { token: string }) {
               <table className="w-full">
                 <thead>
                   <tr style={{ background: "#1a1a24", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                    {["Title", "Odds", "Price", "Status", "Result", "Actions"].map((h) => (
+                    {["Title", "Odds", "Price", "Status", "Purchases", "Result", "Actions"].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide"
@@ -1534,6 +1534,22 @@ function ManageSlipsSection({ token }: { token: string }) {
                       </td>
                       <td className="px-5 py-4">
                         <StatusBadge status={slip.status} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className="inline-flex items-center gap-1 font-bold text-xs px-2.5 py-1 rounded-full"
+                          style={{
+                            background: slip.purchaseCount
+                              ? "rgba(16,185,129,0.12)"
+                              : "rgba(255,255,255,0.05)",
+                            color: slip.purchaseCount ? "#10b981" : "#52525b",
+                            border: slip.purchaseCount
+                              ? "1px solid rgba(16,185,129,0.25)"
+                              : "1px solid rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          {slip.purchaseCount ?? 0}
+                        </span>
                       </td>
                       <td className="px-5 py-4">
                         {slip.result ? <StatusBadge status={slip.result} /> : (
