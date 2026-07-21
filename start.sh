@@ -58,10 +58,14 @@ echo "✅ Backend tunnel: $BACKEND_URL"
 # ── 4. Update frontend .env.local with new backend URL ───────────────────────
 echo "📝 Updating frontend/.env.local with tunnel URL..."
 PAYSTACK_KEY_CURRENT=$(grep '^NEXT_PUBLIC_PAYSTACK_KEY=' "$ENV_LOCAL" 2>/dev/null | cut -d'=' -f2 || echo "REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY")
+FLW_PUBLIC_KEY="FLWPUBK-2733229abd28fd35643c221ef77b8940-X"
 cat > "$ENV_LOCAL" <<EOF
 NEXT_PUBLIC_API_URL=${BACKEND_URL}/api
+NEXT_PUBLIC_UPLOAD_URL=${BACKEND_URL}/api
 NEXT_PUBLIC_PAYSTACK_KEY=${PAYSTACK_KEY_CURRENT}
+NEXT_PUBLIC_FLW_PUBLIC_KEY=${FLW_PUBLIC_KEY}
 EOF
+
 
 # ── 5. Start frontend ─────────────────────────────────────────────────────────
 echo "🖥  Starting frontend on port 3002..."
