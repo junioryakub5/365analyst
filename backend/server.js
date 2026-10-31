@@ -182,9 +182,9 @@ const toP = r => r ? ({ _id:r.id, match:r.match, league:r.league, odds:r.odds,
   result:r.result, createdAt:r.created_at }) : null;
 
 const toMoney = r => r ? ({ _id:r.id, predictionId:r.prediction_id, predictionTitle:r.prediction_title,
-  reference:r.reference, email:r.email, amount:r.amount, currency:r.currency,
+  reference:r.reference, email:r.email, amount:Number(r.amount)||0, currency:r.currency||'GHS',
   status:r.status, accessToken:r.access_token, createdAt:r.created_at,
-  provider:r.provider||'paystack' }) : null;
+  provider:r.provider||((r.currency||'').toUpperCase()==='NGN'?'flutterwave':'paystack') }) : null;
 
 // ─── DB helpers (Supabase or in-memory) ──────────────────────────────────────
 const db = {
@@ -349,18 +349,34 @@ const db = {
   },
   async stats() {
     // ── Time boundaries ──────────────────────────────────────────────────────
-    const now       = new Date();
+    const now        = new Date();
     const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
     const weekStart  = new Date(now); weekStart.setDate(now.getDate() - 6); weekStart.setHours(0,0,0,0);
     const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
 
+    const getAmount = r => {
+      const v = Number(r.amount);
+      return isNaN(v) ? 0 : v;
+    };
+    const isGhana = r => (r.currency || '').toUpperCase() === 'GHS' || (r.provider || '').toLowerCase() === 'paystack';
+    const isNgn   = r => (r.currency || '').toUpperCase() === 'NGN' || (r.provider || '').toLowerCase() === 'flutterwave';
+
     if (supabase) {
+      const todayISO = todayStart.toISOString();
+      const weekISO  = weekStart.toISOString();
+      const monthISO = monthStart.toISOString();
+
       const [
         { count:total },
         { count:active },
         { count:completed },
         { count:salesCount },
-        { data:amountRows },
+        // All-time: order newest-first so the 100k cap drops oldest rows, not new ones
+        { data:allRows, error: allRowsErr },
+        // Time-windowed: date-filtered by Supabase — no JS-side filtering or row-cap issues
+        { data:todayDbRows, error: todayErr },
+        { data:weekDbRows, error: weekErr },
+        { data:monthDbRows, error: monthErr },
         { data:recentRows },
         { count:winCount },
         { count:lossCount },
@@ -369,45 +385,63 @@ const db = {
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','active'),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed'),
         supabase.from('payments').select('*',{count:'exact',head:true}).eq('status','success'),
-        // Fetch amount + currency + provider + created_at for revenue breakdown
-        supabase.from('payments').select('amount,currency,provider,created_at').eq('status','success').limit(100000),
+        // Select amount, currency, created_at which exist across all schema migrations
+        supabase.from('payments').select('amount,currency,created_at')
+          .eq('status','success').order('created_at',{ascending:false}).limit(100000),
+        supabase.from('payments').select('amount,currency')
+          .eq('status','success').gte('created_at', todayISO),
+        supabase.from('payments').select('amount,currency')
+          .eq('status','success').gte('created_at', weekISO),
+        supabase.from('payments').select('amount,currency')
+          .eq('status','success').gte('created_at', monthISO),
         supabase.from('payments').select('*').eq('status','success')
           .order('created_at',{ascending:false}).limit(20),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed').eq('result','win'),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed').eq('result','loss'),
       ]);
-      const rows = amountRows || [];
 
-      // Helper: check if a row is within a date range
-      const inRange = (r, start) => new Date(r.created_at) >= start;
-      const isGhana = r => (r.provider||'paystack') === 'paystack';
-      const isNgn   = r => r.provider === 'flutterwave';
+      if (allRowsErr) console.error('Supabase stats allRows error:', allRowsErr.message);
+      if (todayErr)   console.error('Supabase stats todayErr:', todayErr.message);
+      if (weekErr)    console.error('Supabase stats weekErr:', weekErr.message);
+      if (monthErr)   console.error('Supabase stats monthErr:', monthErr.message);
+
+      const rows  = allRows      || [];
+      const tRows = todayDbRows  || [];
+      const wRows = weekDbRows   || [];
+      const mRows = monthDbRows  || [];
 
       const ghanaRows    = rows.filter(isGhana);
       const nigeriaRows  = rows.filter(isNgn);
 
-      const totalRevenue         = ghanaRows.reduce((s,r) => s + (r.amount||0), 0);   // GHS only
-      const ghanaRevenue         = totalRevenue;
-      const nigeriaRevenue       = nigeriaRows.reduce((s,r) => s + (r.amount||0), 0); // NGN only
+      const ghanaRevenue         = ghanaRows.reduce((s,r) => s + getAmount(r), 0);
+      const nigeriaRevenue       = nigeriaRows.reduce((s,r) => s + getAmount(r), 0);
+      const totalRevenue         = ghanaRevenue;   // GHS portion for backwards compat
       const ghanaSales           = ghanaRows.length;
       const nigeriaSales         = nigeriaRows.length;
 
-      // Today
-      const todayRows            = rows.filter(r => inRange(r, todayStart));
-      const todayGhanaRevenue    = todayRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS
-      const todayNigeriaRevenue  = todayRows.filter(isNgn).reduce((s,r)  => s + (r.amount||0), 0); // NGN
+      // Today — Supabase already filtered by date
+      const todayGhanaRows       = tRows.filter(isGhana);
+      const todayNgnRows         = tRows.filter(isNgn);
+      const todayGhanaRevenue    = todayGhanaRows.reduce((s,r) => s + getAmount(r), 0); // GHS
+      const todayNigeriaRevenue  = todayNgnRows.reduce((s,r) => s + getAmount(r), 0);   // NGN
       const todayRevenue         = todayGhanaRevenue; // GHS only
-      const todaySales           = todayRows.length;
+      const todaySales           = tRows.length;
 
-      // Week (last 7 days)
-      const weekRows             = rows.filter(r => inRange(r, weekStart));
-      const weekRevenue          = weekRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS only
-      const weekSales            = weekRows.length;
+      // Week — Supabase already filtered by date
+      const weekGhanaRows        = wRows.filter(isGhana);
+      const weekNgnRows          = wRows.filter(isNgn);
+      const weekGhanaRevenue     = weekGhanaRows.reduce((s,r) => s + getAmount(r), 0); // GHS
+      const weekNigeriaRevenue   = weekNgnRows.reduce((s,r) => s + getAmount(r), 0);   // NGN
+      const weekRevenue          = weekGhanaRevenue; // GHS only
+      const weekSales            = wRows.length;
 
-      // Month (current calendar month)
-      const monthRows            = rows.filter(r => inRange(r, monthStart));
-      const monthRevenue         = monthRows.filter(isGhana).reduce((s,r) => s + (r.amount||0), 0); // GHS only
-      const monthSales           = monthRows.length;
+      // Month — Supabase already filtered by date
+      const monthGhanaRows       = mRows.filter(isGhana);
+      const monthNgnRows         = mRows.filter(isNgn);
+      const monthGhanaRevenue    = monthGhanaRows.reduce((s,r) => s + getAmount(r), 0); // GHS
+      const monthNigeriaRevenue  = monthNgnRows.reduce((s,r) => s + getAmount(r), 0);   // NGN
+      const monthRevenue         = monthGhanaRevenue; // GHS only
+      const monthSales           = mRows.length;
 
       const totalWins            = winCount  || 0;
       const totalLosses          = lossCount || 0;
@@ -417,7 +451,8 @@ const db = {
         total, active, completed, totalRevenue, salesCount, recentPayments,
         ghanaRevenue, nigeriaRevenue, ghanaSales, nigeriaSales,
         todayRevenue, todayGhanaRevenue, todayNigeriaRevenue, todaySales,
-        weekRevenue, weekSales, monthRevenue, monthSales,
+        weekRevenue, weekGhanaRevenue, weekNigeriaRevenue, weekSales,
+        monthRevenue, monthGhanaRevenue, monthNigeriaRevenue, monthSales,
         totalWins, totalLosses,
       };
     }
@@ -426,30 +461,32 @@ const db = {
     const payments = memPayments.filter(p => p.status==='success');
 
     const inRange = (p, start) => new Date(p.createdAt) >= start;
-    const isGhana = p => (p.provider||'paystack') === 'paystack';
-    const isNgn   = p => p.provider === 'flutterwave';
 
     const ghanaPayments    = payments.filter(isGhana);
     const nigeriaPayments  = payments.filter(isNgn);
 
-    const totalRevenue         = ghanaPayments.reduce((s,p) => s+(p.amount||0), 0); // GHS only
-    const ghanaRevenue         = totalRevenue;
-    const nigeriaRevenue       = nigeriaPayments.reduce((s,p) => s+(p.amount||0), 0); // NGN only
+    const ghanaRevenue         = ghanaPayments.reduce((s,p) => s + getAmount(p), 0);
+    const nigeriaRevenue       = nigeriaPayments.reduce((s,p) => s + getAmount(p), 0);
+    const totalRevenue         = ghanaRevenue;
     const ghanaSales           = ghanaPayments.length;
     const nigeriaSales         = nigeriaPayments.length;
 
     const todayPayments        = payments.filter(p => inRange(p, todayStart));
-    const todayGhanaRevenue    = todayPayments.filter(isGhana).reduce((s,p) => s+(p.amount||0), 0); // GHS
-    const todayNigeriaRevenue  = todayPayments.filter(isNgn).reduce((s,p)  => s+(p.amount||0), 0); // NGN
-    const todayRevenue         = todayGhanaRevenue; // GHS only
+    const todayGhanaRevenue    = todayPayments.filter(isGhana).reduce((s,p) => s + getAmount(p), 0);
+    const todayNigeriaRevenue  = todayPayments.filter(isNgn).reduce((s,p) => s + getAmount(p), 0);
+    const todayRevenue         = todayGhanaRevenue;
     const todaySales           = todayPayments.length;
 
     const weekPayments         = payments.filter(p => inRange(p, weekStart));
-    const weekRevenue          = weekPayments.filter(isGhana).reduce((s,p) => s+(p.amount||0), 0); // GHS only
+    const weekGhanaRevenue     = weekPayments.filter(isGhana).reduce((s,p) => s + getAmount(p), 0);
+    const weekNigeriaRevenue   = weekPayments.filter(isNgn).reduce((s,p) => s + getAmount(p), 0);
+    const weekRevenue          = weekGhanaRevenue;
     const weekSales            = weekPayments.length;
 
     const monthPayments        = payments.filter(p => inRange(p, monthStart));
-    const monthRevenue         = monthPayments.filter(isGhana).reduce((s,p) => s+(p.amount||0), 0); // GHS only
+    const monthGhanaRevenue    = monthPayments.filter(isGhana).reduce((s,p) => s + getAmount(p), 0);
+    const monthNigeriaRevenue  = monthPayments.filter(isNgn).reduce((s,p) => s + getAmount(p), 0);
+    const monthRevenue         = monthGhanaRevenue;
     const monthSales           = monthPayments.length;
 
     const completedPreds       = memPredictions.filter(p => p.status==='completed');
@@ -464,7 +501,8 @@ const db = {
       totalRevenue, salesCount: payments.length,
       recentPayments, ghanaRevenue, nigeriaRevenue, ghanaSales, nigeriaSales,
       todayRevenue, todayGhanaRevenue, todayNigeriaRevenue, todaySales,
-      weekRevenue, weekSales, monthRevenue, monthSales,
+      weekRevenue, weekGhanaRevenue, weekNigeriaRevenue, weekSales,
+      monthRevenue, monthGhanaRevenue, monthNigeriaRevenue, monthSales,
       totalWins, totalLosses,
     };
   },
@@ -941,8 +979,12 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
       todayNigeriaRevenue:  s.todayNigeriaRevenue,
       todaySales:           s.todaySales,
       weekRevenue:          s.weekRevenue,
+      weekGhanaRevenue:     s.weekGhanaRevenue,
+      weekNigeriaRevenue:   s.weekNigeriaRevenue,
       weekSales:            s.weekSales,
       monthRevenue:         s.monthRevenue,
+      monthGhanaRevenue:    s.monthGhanaRevenue,
+      monthNigeriaRevenue:  s.monthNigeriaRevenue,
       monthSales:           s.monthSales,
       // ── Win / Loss record ───────────────────────────────────────────────────
       totalWins:       s.totalWins,

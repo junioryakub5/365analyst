@@ -153,9 +153,12 @@ export async function adminGetStats(token: string): Promise<{
   todayNigeriaRevenue: number;
   todaySales: number;
   weekRevenue: number;
+  weekGhanaRevenue?: number;
+  weekNigeriaRevenue?: number;
   weekSales: number;
   monthRevenue: number;
-  monthSales: number;
+  monthGhanaRevenue?: number;
+  monthNigeriaRevenue?: number;
   totalWins: number;
   totalLosses: number;
   recentActivity: RecentActivity[];

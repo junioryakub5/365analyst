@@ -67,6 +67,15 @@ function OddsBadge({ cat }: { cat: string }) {
   );
 }
 
+function formatMoney(amount: number | string | undefined | null, currency = "GHS") {
+  const num = Number(amount);
+  if (isNaN(num)) return `${currency || "GHS"} 0.00`;
+  if ((currency || "").toUpperCase() === "NGN") {
+    return `NGN ${num.toLocaleString()}`;
+  }
+  return `GHS ${num.toFixed(2)}`;
+}
+
 function Pagination({ page, pages, onPage }: { page: number; pages: number; onPage: (n: number) => void }) {
   if (pages <= 1) return null;
   return (
@@ -354,7 +363,8 @@ function OverviewSection({ token }: { token: string }) {
     totalRevenue: number; totalSales: number; recentActivity: RecentActivity[];
     ghanaRevenue: number; nigeriaRevenue: number; ghanaSales: number; nigeriaSales: number;
     todayRevenue?: number; todayGhanaRevenue?: number; todayNigeriaRevenue?: number; todaySales?: number;
-    weekRevenue?: number; weekSales?: number; monthRevenue?: number; monthSales?: number;
+    weekRevenue?: number; weekGhanaRevenue?: number; weekNigeriaRevenue?: number; weekSales?: number;
+    monthRevenue?: number; monthGhanaRevenue?: number; monthNigeriaRevenue?: number; monthSales?: number;
     totalWins?: number; totalLosses?: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -387,14 +397,20 @@ function OverviewSection({ token }: { token: string }) {
   const winTotal = totalWins + totalLosses;
   const winPct = winTotal > 0 ? Math.round((totalWins / winTotal) * 100) : 0;
 
-  const todayRevenue        = stats.todayRevenue        ?? 0;
-  const todayGhanaRevenue   = stats.todayGhanaRevenue   ?? 0;
-  const todayNigeriaRevenue = stats.todayNigeriaRevenue ?? 0;
-  const todaySales          = stats.todaySales          ?? 0;
-  const weekRevenue         = stats.weekRevenue         ?? 0;
-  const weekSales           = stats.weekSales           ?? 0;
-  const monthRevenue        = stats.monthRevenue        ?? 0;
-  const monthSales          = stats.monthSales          ?? 0;
+  const ghanaRevenue        = Number(stats.ghanaRevenue) || 0;
+  const nigeriaRevenue      = Number(stats.nigeriaRevenue) || 0;
+  const todayRevenue        = Number(stats.todayRevenue) || 0;
+  const todayGhanaRevenue   = Number(stats.todayGhanaRevenue ?? stats.todayRevenue) || 0;
+  const todayNigeriaRevenue = Number(stats.todayNigeriaRevenue) || 0;
+  const todaySales          = Number(stats.todaySales) || 0;
+  const weekRevenue         = Number(stats.weekRevenue) || 0;
+  const weekGhanaRevenue    = Number(stats.weekGhanaRevenue ?? stats.weekRevenue) || 0;
+  const weekNigeriaRevenue  = Number(stats.weekNigeriaRevenue) || 0;
+  const weekSales           = Number(stats.weekSales) || 0;
+  const monthRevenue        = Number(stats.monthRevenue) || 0;
+  const monthGhanaRevenue   = Number(stats.monthGhanaRevenue ?? stats.monthRevenue) || 0;
+  const monthNigeriaRevenue = Number(stats.monthNigeriaRevenue) || 0;
+  const monthSales          = Number(stats.monthSales) || 0;
 
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
@@ -437,8 +453,14 @@ function OverviewSection({ token }: { token: string }) {
                 <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(22,163,74,0.8)" }}>Income Today</p>
               </div>
             </div>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: "2rem", color: "#34d399", lineHeight: 1, marginBottom: 6 }}>
-              GHS {todayRevenue.toFixed(2)}
+            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 900, fontSize: todayGhanaRevenue > 0 && todayNigeriaRevenue > 0 ? "1.5rem" : "2rem", color: "#34d399", lineHeight: 1.2, marginBottom: 6 }}>
+              {todayGhanaRevenue > 0 && todayNigeriaRevenue > 0 ? (
+                <>GHS {todayGhanaRevenue.toFixed(2)} <span style={{ fontSize: "1.05rem", color: "#6ee7b7" }}>+ NGN {todayNigeriaRevenue.toLocaleString()}</span></>
+              ) : todayNigeriaRevenue > 0 ? (
+                `NGN ${todayNigeriaRevenue.toLocaleString()}`
+              ) : (
+                `GHS ${todayGhanaRevenue.toFixed(2)}`
+              )}
             </div>
             <p style={{ fontSize: "0.72rem", color: "#52525b", marginBottom: 14 }}>
               {todaySales} sale{todaySales !== 1 ? "s" : ""} today
@@ -476,21 +498,28 @@ function OverviewSection({ token }: { token: string }) {
             </div>
             <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(129,140,248,0.8)" }}>This Week</p>
           </div>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.7rem", color: "#818cf8", lineHeight: 1, marginBottom: 6 }}>
-            GHS {weekRevenue.toFixed(2)}
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: weekGhanaRevenue > 0 && weekNigeriaRevenue > 0 ? "1.35rem" : "1.7rem", color: "#818cf8", lineHeight: 1.2, marginBottom: 6 }}>
+            {weekGhanaRevenue > 0 && weekNigeriaRevenue > 0 ? (
+              <>GHS {weekGhanaRevenue.toFixed(2)} <span style={{ fontSize: "0.95rem", opacity: 0.85 }}>+ NGN {weekNigeriaRevenue.toLocaleString()}</span></>
+            ) : weekNigeriaRevenue > 0 ? (
+              `NGN ${weekNigeriaRevenue.toLocaleString()}`
+            ) : (
+              `GHS ${weekGhanaRevenue.toFixed(2)}`
+            )}
           </div>
           <p style={{ fontSize: "0.72rem", color: "#52525b" }}>{weekSales} sales · last 7 days</p>
-          <div style={{ marginTop: 16, height: 3, borderRadius: 4, background: "rgba(99,102,241,0.12)" }}>
-            <div style={{
-              height: "100%", borderRadius: 4,
-              background: "linear-gradient(90deg, #818cf8, #6366f1)",
-              width: stats.totalRevenue > 0 ? `${Math.min(100, (weekRevenue / stats.totalRevenue) * 100)}%` : "0%",
-              transition: "width 0.6s ease",
-            }} />
-          </div>
-          <p style={{ fontSize: "0.65rem", color: "#52525b", marginTop: 4 }}>
-            {stats.totalRevenue > 0 ? Math.round((weekRevenue / stats.totalRevenue) * 100) : 0}% of all-time
-          </p>
+          {(weekGhanaRevenue > 0 || weekNigeriaRevenue > 0) && (
+            <div className="space-y-1.5 mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: "#71717a", fontSize: "0.7rem" }}>🇬🇭 Ghana</span>
+                <span style={{ color: "#818cf8", fontWeight: 700, fontSize: "0.75rem" }}>GHS {weekGhanaRevenue.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: "#71717a", fontSize: "0.7rem" }}>🇳🇬 Nigeria</span>
+                <span style={{ color: "#a5b4fc", fontWeight: 700, fontSize: "0.75rem" }}>NGN {weekNigeriaRevenue.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* This Month */}
@@ -512,21 +541,28 @@ function OverviewSection({ token }: { token: string }) {
             </div>
             <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(245,158,11,0.8)" }}>This Month</p>
           </div>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.7rem", color: "#f59e0b", lineHeight: 1, marginBottom: 6 }}>
-            GHS {monthRevenue.toFixed(2)}
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: monthGhanaRevenue > 0 && monthNigeriaRevenue > 0 ? "1.35rem" : "1.7rem", color: "#f59e0b", lineHeight: 1.2, marginBottom: 6 }}>
+            {monthGhanaRevenue > 0 && monthNigeriaRevenue > 0 ? (
+              <>GHS {monthGhanaRevenue.toFixed(2)} <span style={{ fontSize: "0.95rem", opacity: 0.85 }}>+ NGN {monthNigeriaRevenue.toLocaleString()}</span></>
+            ) : monthNigeriaRevenue > 0 ? (
+              `NGN ${monthNigeriaRevenue.toLocaleString()}`
+            ) : (
+              `GHS ${monthGhanaRevenue.toFixed(2)}`
+            )}
           </div>
           <p style={{ fontSize: "0.72rem", color: "#52525b" }}>{monthSales} sales · current month</p>
-          <div style={{ marginTop: 16, height: 3, borderRadius: 4, background: "rgba(245,158,11,0.1)" }}>
-            <div style={{
-              height: "100%", borderRadius: 4,
-              background: "linear-gradient(90deg, #f59e0b, #d97706)",
-              width: stats.totalRevenue > 0 ? `${Math.min(100, (monthRevenue / stats.totalRevenue) * 100)}%` : "0%",
-              transition: "width 0.6s ease",
-            }} />
-          </div>
-          <p style={{ fontSize: "0.65rem", color: "#52525b", marginTop: 4 }}>
-            {stats.totalRevenue > 0 ? Math.round((monthRevenue / stats.totalRevenue) * 100) : 0}% of all-time
-          </p>
+          {(monthGhanaRevenue > 0 || monthNigeriaRevenue > 0) && (
+            <div className="space-y-1.5 mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: "#71717a", fontSize: "0.7rem" }}>🇬🇭 Ghana</span>
+                <span style={{ color: "#f59e0b", fontWeight: 700, fontSize: "0.75rem" }}>GHS {monthGhanaRevenue.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: "#71717a", fontSize: "0.7rem" }}>🇳🇬 Nigeria</span>
+                <span style={{ color: "#fbbf24", fontWeight: 700, fontSize: "0.75rem" }}>NGN {monthNigeriaRevenue.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -535,8 +571,21 @@ function OverviewSection({ token }: { token: string }) {
         {[
           {
             label: "Total Revenue",
-            value: `GHS ${stats.totalRevenue.toFixed(2)}`,
-            sub: `${stats.totalSales} total sales`,
+            value: (
+              ghanaRevenue > 0 && nigeriaRevenue > 0 ? (
+                <span>
+                  GHS {ghanaRevenue.toFixed(2)}
+                  <span style={{ display: "block", fontSize: "0.88rem", opacity: 0.85, marginTop: 2 }}>
+                    + NGN {nigeriaRevenue.toLocaleString()}
+                  </span>
+                </span>
+              ) : nigeriaRevenue > 0 ? (
+                `NGN ${nigeriaRevenue.toLocaleString()}`
+              ) : (
+                `GHS ${ghanaRevenue.toFixed(2)}`
+              )
+            ),
+            sub: `${stats.totalSales} total sales (🇬🇭 ${stats.ghanaSales ?? 0} · 🇳🇬 ${stats.nigeriaSales ?? 0})`,
             color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)",
             Icon: DollarSign,
           },
@@ -588,7 +637,7 @@ function OverviewSection({ token }: { token: string }) {
                 <s.Icon size={16} style={{ color: s.color }} />
               </div>
             </div>
-            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.45rem", color: s.color, lineHeight: 1, marginBottom: 4 }}>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "1.45rem", color: s.color, lineHeight: 1.15, marginBottom: 4 }}>
               {s.value}
             </div>
             <div style={{ fontSize: "0.68rem", color: "#52525b", fontWeight: 600, letterSpacing: "0.02em" }}>{s.label}</div>
@@ -737,7 +786,7 @@ function OverviewSection({ token }: { token: string }) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold" style={{ color: act.status === "success" ? "#10b981" : "#ef4444" }}>
-                        {act.currency} {act.amount}
+                        {formatMoney(act.amount, act.currency)}
                       </p>
                       <p className="text-xs" style={{ color: "#3f3f46" }}>{fmtTime(act.createdAt)}</p>
                     </div>
@@ -1786,7 +1835,7 @@ function PaymentsSection({ token }: { token: string }) {
                       className="font-bold text-sm"
                       style={{ color: pmt.status === "success" ? "#10b981" : "#ef4444" }}
                     >
-                      {pmt.currency} {pmt.amount}
+                      {formatMoney(pmt.amount, pmt.currency)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1.5 ml-9 flex-wrap">
@@ -1864,7 +1913,7 @@ function PaymentsSection({ token }: { token: string }) {
                           className="font-bold text-sm"
                           style={{ color: pmt.status === "success" ? "#10b981" : "#ef4444" }}
                         >
-                          {pmt.currency} {pmt.amount}
+                          {formatMoney(pmt.amount, pmt.currency)}
                         </span>
                       </td>
                       <td className="px-5 py-4">
