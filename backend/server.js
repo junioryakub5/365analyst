@@ -362,21 +362,11 @@ const db = {
     const isNgn   = r => (r.currency || '').toUpperCase() === 'NGN' || (r.provider || '').toLowerCase() === 'flutterwave';
 
     if (supabase) {
-      const todayISO = todayStart.toISOString();
-      const weekISO  = weekStart.toISOString();
-      const monthISO = monthStart.toISOString();
-
       const [
         { count:total },
         { count:active },
         { count:completed },
         { count:salesCount },
-        // All-time: order newest-first so the 100k cap drops oldest rows, not new ones
-        { data:allRows, error: allRowsErr },
-        // Time-windowed: date-filtered by Supabase — no JS-side filtering or row-cap issues
-        { data:todayDbRows, error: todayErr },
-        { data:weekDbRows, error: weekErr },
-        { data:monthDbRows, error: monthErr },
         { data:recentRows },
         { count:winCount },
         { count:lossCount },
@@ -385,30 +375,38 @@ const db = {
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','active'),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed'),
         supabase.from('payments').select('*',{count:'exact',head:true}).eq('status','success'),
-        // Select amount, currency, created_at which exist across all schema migrations
-        supabase.from('payments').select('amount,currency,created_at')
-          .eq('status','success').order('created_at',{ascending:false}).limit(100000),
-        supabase.from('payments').select('amount,currency')
-          .eq('status','success').gte('created_at', todayISO),
-        supabase.from('payments').select('amount,currency')
-          .eq('status','success').gte('created_at', weekISO),
-        supabase.from('payments').select('amount,currency')
-          .eq('status','success').gte('created_at', monthISO),
         supabase.from('payments').select('*').eq('status','success')
           .order('created_at',{ascending:false}).limit(20),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed').eq('result','win'),
         supabase.from('predictions').select('*',{count:'exact',head:true}).eq('status','completed').eq('result','loss'),
       ]);
 
-      if (allRowsErr) console.error('Supabase stats allRows error:', allRowsErr.message);
-      if (todayErr)   console.error('Supabase stats todayErr:', todayErr.message);
-      if (weekErr)    console.error('Supabase stats weekErr:', weekErr.message);
-      if (monthErr)   console.error('Supabase stats monthErr:', monthErr.message);
+      // Fetch all successful payment rows in batches of 1000 so PostgREST row limit (default 1000) does not truncate
+      const totalSalesCount = salesCount || 0;
+      const PAGE_SIZE = 1000;
+      const pagesNeeded = Math.max(1, Math.ceil(totalSalesCount / PAGE_SIZE));
+      const maxPages = Math.min(pagesNeeded, 50); // safety cap up to 50,000 rows
 
-      const rows  = allRows      || [];
-      const tRows = todayDbRows  || [];
-      const wRows = weekDbRows   || [];
-      const mRows = monthDbRows  || [];
+      const pagePromises = [];
+      for (let i = 0; i < maxPages; i++) {
+        const from = i * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        pagePromises.push(
+          supabase.from('payments')
+            .select('amount,currency,created_at')
+            .eq('status', 'success')
+            .order('created_at', { ascending: false })
+            .range(from, to)
+        );
+      }
+      const pageResults = await Promise.all(pagePromises);
+      const rows = [];
+      for (const res of pageResults) {
+        if (res.error) console.error('Supabase fetch payments batch error:', res.error.message);
+        if (res.data) rows.push(...res.data);
+      }
+
+      const inRange = (r, start) => new Date(r.created_at) >= start;
 
       const ghanaRows    = rows.filter(isGhana);
       const nigeriaRows  = rows.filter(isNgn);
@@ -419,29 +417,32 @@ const db = {
       const ghanaSales           = ghanaRows.length;
       const nigeriaSales         = nigeriaRows.length;
 
-      // Today — Supabase already filtered by date
-      const todayGhanaRows       = tRows.filter(isGhana);
-      const todayNgnRows         = tRows.filter(isNgn);
+      // Today
+      const todayRows            = rows.filter(r => inRange(r, todayStart));
+      const todayGhanaRows       = todayRows.filter(isGhana);
+      const todayNgnRows         = todayRows.filter(isNgn);
       const todayGhanaRevenue    = todayGhanaRows.reduce((s,r) => s + getAmount(r), 0); // GHS
       const todayNigeriaRevenue  = todayNgnRows.reduce((s,r) => s + getAmount(r), 0);   // NGN
       const todayRevenue         = todayGhanaRevenue; // GHS only
-      const todaySales           = tRows.length;
+      const todaySales           = todayRows.length;
 
-      // Week — Supabase already filtered by date
-      const weekGhanaRows        = wRows.filter(isGhana);
-      const weekNgnRows          = wRows.filter(isNgn);
+      // Week
+      const weekRows             = rows.filter(r => inRange(r, weekStart));
+      const weekGhanaRows        = weekRows.filter(isGhana);
+      const weekNgnRows          = weekRows.filter(isNgn);
       const weekGhanaRevenue     = weekGhanaRows.reduce((s,r) => s + getAmount(r), 0); // GHS
       const weekNigeriaRevenue   = weekNgnRows.reduce((s,r) => s + getAmount(r), 0);   // NGN
       const weekRevenue          = weekGhanaRevenue; // GHS only
-      const weekSales            = wRows.length;
+      const weekSales            = weekRows.length;
 
-      // Month — Supabase already filtered by date
-      const monthGhanaRows       = mRows.filter(isGhana);
-      const monthNgnRows         = mRows.filter(isNgn);
+      // Month
+      const monthRows            = rows.filter(r => inRange(r, monthStart));
+      const monthGhanaRows       = monthRows.filter(isGhana);
+      const monthNgnRows         = monthRows.filter(isNgn);
       const monthGhanaRevenue    = monthGhanaRows.reduce((s,r) => s + getAmount(r), 0); // GHS
       const monthNigeriaRevenue  = monthNgnRows.reduce((s,r) => s + getAmount(r), 0);   // NGN
       const monthRevenue         = monthGhanaRevenue; // GHS only
-      const monthSales           = mRows.length;
+      const monthSales           = monthRows.length;
 
       const totalWins            = winCount  || 0;
       const totalLosses          = lossCount || 0;
